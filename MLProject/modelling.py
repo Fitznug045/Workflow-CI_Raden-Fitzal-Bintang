@@ -66,20 +66,19 @@ def main():
     )
     
     # 7. Training + MLflow
-    with mlflow.start_run():
-        model.fit(X_train, y_train)
+    model.fit(X_train, y_train)
 
-        y_pred = model.predict(X_test)
+    y_pred = model.predict(X_test)
 
-        acc = accuracy_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
+    acc = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
 
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("f1_score", f1)
+    mlflow.log_metric("accuracy", acc)
+    mlflow.log_metric("f1_score", f1)
 
-        mlflow.sklearn.log_model(model, "model")
+    mlflow.sklearn.log_model(model, "model")
 
-        print(f"Training selesai | accuracy={acc:.4f}, f1={f1:.4f}")
+    print(f"Training selesai | accuracy={acc:.4f}, f1={f1:.4f}")
 
 
 if __name__ == "__main__":
