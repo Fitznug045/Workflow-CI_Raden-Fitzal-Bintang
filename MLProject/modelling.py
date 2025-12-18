@@ -66,7 +66,7 @@ def main():
     )
     
     # 7. Training + MLflow
-    with mlflow.start_run:
+    with mlflow.start_run():
         model.fit(X_train, y_train)
 
         y_pred = model.predict(X_test)
