@@ -1,0 +1,5 @@
+name: hotel-booking-ci
+
+entry_points:
+  main:
+    command: "python modelling.py"
