@@ -10,7 +10,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-
+os.environ.pop("MLFLOW_RUN_ID", None)
 
 def main():
     # 1. Download Dataset
@@ -66,7 +66,7 @@ def main():
     )
     
     # 7. Training + MLflow
-    with mlflow.start_run(nested=True):
+    with mlflow.start_run:
         model.fit(X_train, y_train)
 
         y_pred = model.predict(X_test)
