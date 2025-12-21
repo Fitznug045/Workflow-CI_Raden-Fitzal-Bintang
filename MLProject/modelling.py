@@ -1,5 +1,4 @@
 import os
-import dagshub
 import kagglehub
 import mlflow
 import mlflow.sklearn
@@ -13,13 +12,6 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-# DagsHub MLflow Setup
-dagshub.init(
-    repo_owner="Fitznug045",
-    repo_name="tes-repo",
-    mlflow=True
-)
 
 mlflow.set_experiment("Hotel Booking Demand - CI")
 
