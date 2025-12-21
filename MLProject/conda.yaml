@@ -8,7 +8,10 @@ dependencies:
   - pip
   - pip:
       - pandas
+      - dagshub
       - numpy
-      - scikit-learn
       - mlflow
-      - Kagglehub
+      - scikit-learn
+      - matplotlib
+      - seaborn
+      - kagglehub
