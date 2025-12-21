@@ -43,7 +43,7 @@ numeric_transformer = Pipeline(steps=[
 
 categorical_transformer = Pipeline(steps=[
     ("imputer", SimpleImputer(strategy="most_frequent")),
-    ("onehot", OneHotEncoder(handle_unknown="ignore", sparse=False))
+    ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
 ])
 
 preprocessor = ColumnTransformer(
@@ -61,16 +61,14 @@ X_train, X_test, y_train, y_test = train_test_split(
 # Train model
 with mlflow.start_run(run_name="ci_training"):
 
-    model = RandomForestClassifier(
-        n_estimators=200,
-        max_depth=20,
-        random_state=42,
-        n_jobs=-1
-    )
-
     clf = Pipeline(steps=[
         ("preprocessor", preprocessor),
-        ("model", model)
+        ("model", RandomForestClassifier(
+            n_estimators=200,
+            max_depth=20,
+            random_state=42,
+            n_jobs=-1
+        ))
     ])
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
