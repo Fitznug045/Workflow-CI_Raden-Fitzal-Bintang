@@ -27,5 +27,5 @@ jobs:
         DAGSHUB_USER_TOKEN: ${{ secrets.DAGSHUB_USER_TOKEN }}
       run: |
         cd MLProject
-        mlflow run .
+        mlflow run . --env-manager=local
 
