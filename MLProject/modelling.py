@@ -1,86 +1,84 @@
-import pandas as pd
-import kagglehub
 import os
+import dagshub
+import kagglehub
 import mlflow
 import mlflow.sklearn
+import pandas as pd
+import numpy as np
+
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-os.environ.pop("MLFLOW_RUN_ID", None)
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 
-def main():
-    # 1. Download Dataset
-    path = kagglehub.dataset_download("jessemostipak/hotel-booking-demand")
-    csv_path = os.path.join(path, "hotel_bookings.csv")
-    df = pd.read_csv(csv_path)
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-    # 2. Preprocessing Ringan
-    df = df.drop_duplicates()
-    df["children"] = df["children"].fillna(0)
-    df["agent"] = df["agent"].fillna(0)
-    df["company"] = df["company"].fillna(0)
-    df["country"] = df["country"].fillna("Unknown")
+# DagsHub MLflow Setup
+dagshub.init(
+    repo_owner="Fitznug045",
+    repo_name="tes-repo",
+    mlflow=True
+)
 
-    X = df.drop(columns=["is_canceled"])
-    y = df["is_canceled"]
+mlflow.set_experiment("Hotel Booking Demand - CI")
 
-    # 3. Column Split
-    numeric_features = X.select_dtypes(include=["int64", "float64"]).columns
-    categorical_features = X.select_dtypes(include=["object"]).columns
-    
-    # 4. Preprocessing
-    numeric_transformer = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="median"))
-    ])
+# Load dataset (runtime)
+path = kagglehub.dataset_download("jessemostipak/hotel-booking-demand")
+df = pd.read_csv(os.path.join(path, "hotel_bookings.csv"))
 
-    categorical_transformer = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("encoder", OneHotEncoder(handle_unknown="ignore"))
-    ])
+# Basic preprocessing
+df["children"] = df["children"].fillna(0)
+df["agent"] = df["agent"].fillna(0)
+df["company"] = df["company"].fillna(0)
+df["country"] = df["country"].fillna("Unknown")
+df = df.drop_duplicates()
 
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ("num", numeric_transformer, numeric_features),
-            ("cat", categorical_transformer, categorical_features)
-        ]
+X = df.drop(columns=["is_canceled"])
+y = df["is_canceled"]
+
+imputer = SimpleImputer(strategy="median")
+X = pd.DataFrame(imputer.fit_transform(X), columns=X.columns)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# Train model
+with mlflow.start_run(run_name="ci_training"):
+
+    model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=20,
+        random_state=42,
+        n_jobs=-1
     )
 
-    # 5. Model Pipeline
-    model = Pipeline(steps=[
-        ("preprocessor", preprocessor),
-        ("classifier", RandomForestClassifier(
-            n_estimators=200,
-            max_depth=20,
-            random_state=42,
-            n_jobs=-1
-        ))
-    ])
-    
-    # 6. Split Data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
-    
-    # 7. Training + MLflow
-    with mlflow.start_run():
-        model.fit(X_train, y_train)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
-        y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
 
-        acc = accuracy_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
+    mlflow.log_param("n_estimators", 200)
+    mlflow.log_param("max_depth", 20)
+    mlflow.log_metric("accuracy", acc)
+    mlflow.log_metric("f1_score", f1)
 
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("f1_score", f1)
+    # Save model
+    mlflow.sklearn.log_model(model, "model")
 
-        mlflow.sklearn.log_model(model, "model")
+    # Confusion matrix artifact
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(5,4))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.title("Confusion Matrix")
 
-        print(f"Training selesai | accuracy={acc:.4f}, f1={f1:.4f}")
+    os.makedirs("artifacts", exist_ok=True)
+    cm_path = "artifacts/cm.png"
+    plt.savefig(cm_path)
+    plt.close()
 
+    mlflow.log_artifact(cm_path)
 
-if __name__ == "__main__":
-    main()
+    print(f"CI Training finished | accuracy={acc:.4f}, f1={f1:.4f}")
