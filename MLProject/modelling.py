@@ -5,6 +5,9 @@ import mlflow.sklearn
 import pandas as pd
 import numpy as np
 
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -29,8 +32,27 @@ df = df.drop_duplicates()
 X = df.drop(columns=["is_canceled"])
 y = df["is_canceled"]
 
-imputer = SimpleImputer(strategy="median")
-X = pd.DataFrame(imputer.fit_transform(X), columns=X.columns)
+# Pisahkan kolom
+num_cols = X.select_dtypes(include=["int64", "float64"]).columns
+cat_cols = X.select_dtypes(include=["object"]).columns
+
+# Preprocessing
+numeric_transformer = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="median"))
+])
+
+categorical_transformer = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="most_frequent")),
+    ("onehot", OneHotEncoder(handle_unknown="ignore", sparse=False))
+])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer, num_cols),
+        ("cat", categorical_transformer, cat_cols)
+    ]
+)
+
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
@@ -46,8 +68,12 @@ with mlflow.start_run(run_name="ci_training"):
         n_jobs=-1
     )
 
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
+    clf = Pipeline(steps=[
+        ("preprocessor", preprocessor),
+        ("model", model)
+    ])
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
 
     acc = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
@@ -58,7 +84,7 @@ with mlflow.start_run(run_name="ci_training"):
     mlflow.log_metric("f1_score", f1)
 
     # Save model
-    mlflow.sklearn.log_model(model, "model")
+    mlflow.sklearn.log_model(sk_model=clf, name="model")
 
     # Confusion matrix artifact
     cm = confusion_matrix(y_test, y_pred)
