@@ -25,6 +25,9 @@ jobs:
     - name: Run MLflow Project
       env:
         DAGSHUB_USER_TOKEN: ${{ secrets.DAGSHUB_USER_TOKEN }}
+        MLFLOW_TRACKING_URI: https://dagshub.com/Fitznug045/tes-repo.mlflow
+        MLFLOW_TRACKING_USERNAME: Fitznug045
+        MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_USER_TOKEN }}
       run: |
         cd MLProject
         mlflow run . --env-manager=local
