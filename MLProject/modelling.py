@@ -16,13 +16,15 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-mlflow.set_experiment("Hotel Booking Demand - CI")
-
-# Load dataset (runtime)
+# ===============================
+# 1. LOAD DATASET
+# ===============================
 path = kagglehub.dataset_download("jessemostipak/hotel-booking-demand")
 df = pd.read_csv(os.path.join(path, "hotel_bookings.csv"))
 
-# Basic preprocessing
+# ===============================
+# 2. BASIC CLEANING
+# ===============================
 df["children"] = df["children"].fillna(0)
 df["agent"] = df["agent"].fillna(0)
 df["company"] = df["company"].fillna(0)
@@ -32,11 +34,15 @@ df = df.drop_duplicates()
 X = df.drop(columns=["is_canceled"])
 y = df["is_canceled"]
 
-# Pisahkan kolom
+# ===============================
+# 3. COLUMN SPLIT
+# ===============================
 num_cols = X.select_dtypes(include=["int64", "float64"]).columns
 cat_cols = X.select_dtypes(include=["object"]).columns
 
-# Preprocessing
+# ===============================
+# 4. PREPROCESSING PIPELINE
+# ===============================
 numeric_transformer = Pipeline(steps=[
     ("imputer", SimpleImputer(strategy="median"))
 ])
@@ -53,48 +59,72 @@ preprocessor = ColumnTransformer(
     ]
 )
 
-
+# ===============================
+# 5. SPLIT DATA
+# ===============================
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
 )
 
-# Train model
-with mlflow.start_run(run_name="ci_training"):
+# ===============================
+# 6. MODEL PIPELINE
+# ===============================
+clf = Pipeline(steps=[
+    ("preprocessor", preprocessor),
+    ("model", RandomForestClassifier(
+        n_estimators=200,
+        max_depth=20,
+        random_state=42,
+        n_jobs=-1
+    ))
+])
 
-    clf = Pipeline(steps=[
-        ("preprocessor", preprocessor),
-        ("model", RandomForestClassifier(
-            n_estimators=200,
-            max_depth=20,
-            random_state=42,
-            n_jobs=-1
-        ))
-    ])
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
+# ===============================
+# 7. TRAIN
+# ===============================
+clf.fit(X_train, y_train)
+y_pred = clf.predict(X_test)
 
-    acc = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
+# ===============================
+# 8. METRICS
+# ===============================
+acc = accuracy_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
 
-    mlflow.log_param("n_estimators", 200)
-    mlflow.log_param("max_depth", 20)
-    mlflow.log_metric("accuracy", acc)
-    mlflow.log_metric("f1_score", f1)
+# ===============================
+# 9. MLflow LOGGING (CI SAFE)
+# ===============================
+mlflow.log_param("n_estimators", 200)
+mlflow.log_param("max_depth", 20)
+mlflow.log_metric("accuracy", acc)
+mlflow.log_metric("f1_score", f1)
 
-    # Save model
-    mlflow.sklearn.log_model(sk_model=clf, name="model")
+# Log model (AKAN MUNCUL FOLDER model/)
+mlflow.sklearn.log_model(
+    sk_model=clf,
+    name="model"
+)
 
-    # Confusion matrix artifact
-    cm = confusion_matrix(y_test, y_pred)
-    plt.figure(figsize=(5,4))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-    plt.title("Confusion Matrix")
+# ===============================
+# 10. ARTIFACTS
+# ===============================
+os.makedirs("artifacts", exist_ok=True)
 
-    os.makedirs("artifacts", exist_ok=True)
-    cm_path = "artifacts/cm.png"
-    plt.savefig(cm_path)
-    plt.close()
+# Confusion Matrix
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(5, 4))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
 
-    mlflow.log_artifact(cm_path)
+cm_path = "artifacts/confusion_matrix.png"
+plt.savefig(cm_path)
+plt.close()
 
-    print(f"CI Training finished | accuracy={acc:.4f}, f1={f1:.4f}")
+mlflow.log_artifact(cm_path)
+
+print(f"CI Training finished | accuracy={acc:.4f}, f1={f1:.4f}")
