@@ -1,8 +1,8 @@
 import os
+import gdown
 import mlflow
 import mlflow.sklearn
 import pandas as pd
-import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -14,7 +14,16 @@ import seaborn as sns
 # ===============================
 # 1. LOAD DATASET
 # ===============================
-df = pd.read_csv("hotelbookingdemand_preprocessing/hotel_bookings_clean.csv")
+FILE_ID = "1NRK4-UrsL-QVKz-H-fWWebbyEE2WXVAm"
+url = f"https://drive.google.com/uc?id={FILE_ID}"
+
+os.makedirs("data", exist_ok=True)
+output_path = "data/hotel_bookings_clean.csv"
+
+if not os.path.exists(output_path):
+    gdown.download(url, output_path, quiet=False)
+
+df = pd.read_csv(output_path)
 
 X = df.drop(columns=["is_canceled"])
 y = df["is_canceled"]
