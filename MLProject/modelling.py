@@ -1,16 +1,11 @@
 import os
-import kagglehub
 import mlflow
 import mlflow.sklearn
 import pandas as pd
 import numpy as np
 
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 
 import matplotlib.pyplot as plt
@@ -19,48 +14,13 @@ import seaborn as sns
 # ===============================
 # 1. LOAD DATASET
 # ===============================
-path = kagglehub.dataset_download("jessemostipak/hotel-booking-demand")
-df = pd.read_csv(os.path.join(path, "hotel_bookings.csv"))
-
-# ===============================
-# 2. BASIC CLEANING
-# ===============================
-df["children"] = df["children"].fillna(0)
-df["agent"] = df["agent"].fillna(0)
-df["company"] = df["company"].fillna(0)
-df["country"] = df["country"].fillna("Unknown")
-df = df.drop_duplicates()
+df = pd.read_csv("hotelbookingdemand_preprocessing/hotel_bookings_clean.csv")
 
 X = df.drop(columns=["is_canceled"])
 y = df["is_canceled"]
 
 # ===============================
-# 3. COLUMN SPLIT
-# ===============================
-num_cols = X.select_dtypes(include=["int64", "float64"]).columns
-cat_cols = X.select_dtypes(include=["object"]).columns
-
-# ===============================
-# 4. PREPROCESSING PIPELINE
-# ===============================
-numeric_transformer = Pipeline(steps=[
-    ("imputer", SimpleImputer(strategy="median"))
-])
-
-categorical_transformer = Pipeline(steps=[
-    ("imputer", SimpleImputer(strategy="most_frequent")),
-    ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
-])
-
-preprocessor = ColumnTransformer(
-    transformers=[
-        ("num", numeric_transformer, num_cols),
-        ("cat", categorical_transformer, cat_cols)
-    ]
-)
-
-# ===============================
-# 5. SPLIT DATA
+# 2. SPLIT DATA
 # ===============================
 X_train, X_test, y_train, y_test = train_test_split(
     X, y,
@@ -70,7 +30,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # ===============================
-# 6. MODEL PIPELINE
+# 3. MODEL PIPELINE
 # ===============================
 clf = Pipeline(steps=[
     ("preprocessor", preprocessor),
@@ -83,33 +43,33 @@ clf = Pipeline(steps=[
 ])
 
 # ===============================
-# 7. TRAIN
+# 4. TRAIN
 # ===============================
 clf.fit(X_train, y_train)
 y_pred = clf.predict(X_test)
 
 # ===============================
-# 8. METRICS
+# 5. METRICS
 # ===============================
 acc = accuracy_score(y_test, y_pred)
 f1 = f1_score(y_test, y_pred)
 
 # ===============================
-# 9. MLflow LOGGING (CI SAFE)
+# 6. MLflow LOGGING (CI SAFE)
 # ===============================
 mlflow.log_param("n_estimators", 200)
 mlflow.log_param("max_depth", 20)
 mlflow.log_metric("accuracy", acc)
 mlflow.log_metric("f1_score", f1)
 
-# Log model (AKAN MUNCUL FOLDER model/)
+# Log model
 mlflow.sklearn.log_model(
     sk_model=clf,
     name="model"
 )
 
 # ===============================
-# 10. ARTIFACTS
+# 7. ARTIFACTS
 # ===============================
 os.makedirs("artifacts", exist_ok=True)
 
