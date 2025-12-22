@@ -39,50 +39,34 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # ===============================
-# 3. MODEL PIPELINE
+# 3. AUTOLOG
 # ===============================
-clf = Pipeline(steps=[
-    ("preprocessor", preprocessor),
-    ("model", RandomForestClassifier(
-        n_estimators=200,
-        max_depth=20,
-        random_state=42,
-        n_jobs=-1
-    ))
-])
+mlflow.autolog()
 
 # ===============================
 # 4. TRAIN
 # ===============================
-clf.fit(X_train, y_train)
-y_pred = clf.predict(X_test)
+model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=20,
+        random_state=42,
+        n_jobs=-1
+)
+model.fit(X_train, y_train)
 
 # ===============================
 # 5. METRICS
 # ===============================
+y_pred = model.predict(X_test)
 acc = accuracy_score(y_test, y_pred)
 f1 = f1_score(y_test, y_pred)
+print(f"CI Training finished | accuracy={acc:.4f}, f1={f1:.4f}")
 
 # ===============================
-# 6. MLflow LOGGING (CI SAFE)
-# ===============================
-mlflow.log_param("n_estimators", 200)
-mlflow.log_param("max_depth", 20)
-mlflow.log_metric("accuracy", acc)
-mlflow.log_metric("f1_score", f1)
-
-# Log model
-mlflow.sklearn.log_model(
-    sk_model=clf,
-    name="model"
-)
-
-# ===============================
-# 7. ARTIFACTS
+# 6. ARTIFACTS
 # ===============================
 os.makedirs("artifacts", exist_ok=True)
 
-# Confusion Matrix
 cm = confusion_matrix(y_test, y_pred)
 plt.figure(figsize=(5, 4))
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
@@ -95,5 +79,3 @@ plt.savefig(cm_path)
 plt.close()
 
 mlflow.log_artifact(cm_path)
-
-print(f"CI Training finished | accuracy={acc:.4f}, f1={f1:.4f}")
