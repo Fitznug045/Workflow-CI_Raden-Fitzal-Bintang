@@ -20,7 +20,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install mlflow dagshub kagglehub pandas numpy scikit-learn matplotlib seaborn
+        pip install mlflow dagshub gdown pandas numpy scikit-learn matplotlib seaborn
 
     - name: Run MLflow Project
       env:
